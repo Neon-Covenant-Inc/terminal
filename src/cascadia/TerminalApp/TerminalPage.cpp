@@ -2974,14 +2974,15 @@ namespace winrt::TerminalApp::implementation
     // Arguments:
     // - dismissSelection: if not enabled, copying text doesn't dismiss the selection
     // - singleLine: if enabled, copy contents as a single line of text
+    // - withControlSequences: if enabled, the copied plain text contains color/style ANSI escape codes from the selection
     // - formats: dictate which formats need to be copied
     // Return Value:
     // - true iff we we able to copy text (if a selection was active)
-    bool TerminalPage::_CopyText(const bool dismissSelection, const bool singleLine, const Windows::Foundation::IReference<CopyFormat>& formats)
+    bool TerminalPage::_CopyText(const bool dismissSelection, const bool singleLine, const bool withControlSequences, const Windows::Foundation::IReference<CopyFormat>& formats)
     {
         if (const auto& control{ _GetActiveControl() })
         {
-            return control.CopySelectionToClipboard(dismissSelection, singleLine, formats);
+            return control.CopySelectionToClipboard(dismissSelection, singleLine, withControlSequences, formats);
         }
         return false;
     }
@@ -3174,6 +3175,14 @@ namespace winrt::TerminalApp::implementation
                 }
             };
 
+            auto openFolder = [](const auto& filePath) {
+                HINSTANCE res = ShellExecute(nullptr, nullptr, filePath.c_str(), nullptr, nullptr, SW_SHOW);
+                if (static_cast<int>(reinterpret_cast<uintptr_t>(res)) <= 32)
+                {
+                    ShellExecute(nullptr, nullptr, L"open", filePath.c_str(), nullptr, SW_SHOW);
+                }
+            };
+
             switch (target)
             {
             case SettingsTarget::DefaultsFile:
@@ -3181,6 +3190,9 @@ namespace winrt::TerminalApp::implementation
                 break;
             case SettingsTarget::SettingsFile:
                 openFile(CascadiaSettings::SettingsPath());
+                break;
+            case SettingsTarget::Directory:
+                openFolder(CascadiaSettings::SettingsDirectory());
                 break;
             case SettingsTarget::AllFiles:
                 openFile(CascadiaSettings::DefaultSettingsPath());
